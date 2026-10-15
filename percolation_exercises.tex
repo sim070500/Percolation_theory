@@ -1,0 +1,273 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\usepackage{microtype}
+\usepackage{xcolor}
+
+\newcounter{prob}[section]
+\renewcommand{\theprob}{\thesection.\arabic{prob}}
+\newenvironment{problem}[2]{\refstepcounter{prob}\par\bigskip\noindent\textbf{Problem \theprob\ \ #1}\hfill{\small #2}\par\smallskip}{\par}
+\newcommand{\task}{\par\smallskip\noindent\textit{Tasks.}\ }
+\newcommand{\checkpt}{\par\smallskip\noindent\textcolor{green!40!black}{\textit{Checkpoint.}}\ }
+\newcommand{\think}{\par\smallskip\noindent\textcolor{blue!50!black}{\textit{Think about it.}}\ }
+\newcommand{\hint}{\par\smallskip\noindent\textcolor{gray!70!black}{\textit{Hint (no code).}}\ }
+\renewcommand{\thesection}{\Alph{section}}
+
+\title{\textbf{Percolation by Simulation: A Problem Set}\\[2pt]
+\large Companion to ``Percolation by Example''}
+\author{}
+\date{October 2026}
+
+\begin{document}
+\maketitle
+
+\noindent This problem set turns Examples~1--3 (and, optionally, Example~5) of the main text into simulation exercises. Each problem states a goal, what to implement, what to plot, and \emph{checkpoints}: analytic numbers your code should reproduce before you trust it on cases where no analytic answer exists. Problems marked {\small$\star$} are warm-ups, {\small$\star\star$} are core, and {\small$\star\star\star$} are open-ended. No solutions or code are given.
+
+\paragraph{General rules for all problems.}
+\begin{enumerate}[leftmargin=*,itemsep=1pt]
+\item \textbf{Fix and record the random seed} for every run, so results are reproducible.
+\item \textbf{Report error bars.} For any averaged quantity, report the standard error over independent realisations, $\sigma/\sqrt{M}$.
+\item \textbf{Test before you measure.} Every new routine is first run on tiny, hand-made configurations whose answer you can count by eye.
+\item \textbf{Vary the system size.} Any claimed threshold must be shown for at least three system sizes.
+\item \textbf{Write your own cluster labelling} in Part~0; afterwards you may compare against a library routine as a check.
+\end{enumerate}
+
+%=====================================================================
+\setcounter{section}{-1}
+\renewcommand{\thesection}{\arabic{section}}
+\section{Toolkit}
+%=====================================================================
+
+\begin{problem}{Union--find cluster labelling}{$\star$}
+Implement a \emph{union--find} (disjoint-set) data structure with two operations: \texttt{find(i)} returns the representative of the set containing $i$, and \texttt{union(i,j)} merges two sets. Add \emph{path compression} and \emph{union by size}, and keep track of the size of each set.
+\task
+\begin{enumerate}[label=(\alph*),itemsep=1pt]
+\item Use it to label clusters of (i) occupied sites on a 1D chain, (ii) occupied sites on an $L\times L$ square lattice (site percolation), (iii) open bonds on an $L\times L$ square lattice (bond percolation), and (iv) an arbitrary graph given as an edge list.
+\item Construct at least five $5\times5$ test grids by hand (all empty, all full, a checkerboard, a single snake-like cluster, two clusters touching only diagonally) and verify the cluster sizes.
+\item Measure the run time for $L=64,128,\dots,2048$ at $p=0.6$. How does it scale with the number of sites?
+\end{enumerate}
+\think Why is depth-first search with recursion risky for large clusters near $p_c$? What does path compression buy you?
+\end{problem}
+
+\begin{problem}{Spanning and the largest cluster}{$\star$}
+Write two diagnostics for a labelled lattice configuration: (i) the size of the largest cluster, divided by the number of sites; (ii) a boolean ``spans'', true if one cluster touches both the left and the right boundary.
+\hint Two extra ``virtual'' sites, one attached to every site in the left column and one to every site in the right column, turn spanning into a single \texttt{find} comparison.
+\end{problem}
+
+%=====================================================================
+\renewcommand{\thesection}{\Alph{section}}
+\setcounter{section}{0}
+\section{The one-dimensional chain (Example 1)}
+%=====================================================================
+
+\begin{problem}{Cluster-size distribution}{$\star$}
+Simulate a chain of $L$ sites, each occupied with probability $p$.
+\task
+\begin{enumerate}[label=(\alph*),itemsep=1pt]
+\item Measure $n_s$, the number of clusters of size $s$ \emph{per site}, for $p=0.5,0.8,0.95$ and $L=10^5$, and plot it on a semi-log axis against $(1-p)^2p^s$.
+\item Do this once with open and once with periodic boundaries. Where do they differ, and why does the difference grow as $p\to1$?
+\item Verify numerically that $\sum_s s\,n_s=p$.
+\end{enumerate}
+\checkpt At $p=0.5$, $n_1=0.125$ and $n_2=0.0625$.
+\end{problem}
+
+\begin{problem}{Two kinds of ``mean cluster size''}{$\star\star$}
+This problem makes the distinction between cluster-weighted and site-weighted averages concrete.
+\task
+\begin{enumerate}[label=(\alph*),itemsep=1pt]
+\item From your $n_s$, compute the cluster average $\langle s\rangle_{\text{cluster}}=\sum s\,n_s/\sum n_s$ and the site average $\chi=\sum s^2n_s/\sum s\,n_s$.
+\item Estimate $\chi$ a second, independent way: pick $10^4$ occupied sites uniformly at random and average the size of the cluster each belongs to. Do the two estimates agree within error bars?
+\item Plot both averages against $p$ together with $1/(1-p)$ and $(1+p)/(1-p)$.
+\end{enumerate}
+\checkpt At $p=0.5$: $\langle s\rangle_{\text{cluster}}=2$, $\chi=3$. At $p=0.9$: $\langle s\rangle_{\text{cluster}}=10$, $\chi=19$.
+\think Repeat (b) but pick a random \emph{cluster} first and then a random site in it. Which average do you get, and why?
+\end{problem}
+
+\begin{problem}{The threshold of a finite chain}{$\star\star$}
+In 1D, $p_c=1$ only for an infinite chain. For a chain of length $L$ with open boundaries, ``spanning'' means all $L$ sites are occupied.
+\task
+\begin{enumerate}[label=(\alph*),itemsep=1pt]
+\item Measure the spanning probability $\Pi_L(p)$ for $L=10,30,100,300$. Overlay the curves.
+\item Define an effective threshold $p_c(L)$ by $\Pi_L=1/2$. Plot $1-p_c(L)$ against $L$ on log--log axes and fit a power law.
+\item Compare with what you can work out on paper for $\Pi_L(p)$.
+\end{enumerate}
+\checkpt $p_c(10)\approx0.933$, $p_c(100)\approx0.9931$; the log--log slope is $-1$.
+\think The correlation length of the 1D chain is $\xi=-1/\ln p$. Show that $p_c(L)$ is where $\xi\sim L$. This is the simplest example of finite-size scaling.
+\end{problem}
+
+\begin{problem}{A correlated chain (a first non-ideal case)}{$\star\star$}
+Real binding sites are rarely independent. Generate a chain as a two-state Markov process: a site is occupied with probability $a$ if its left neighbour is occupied, and with probability $b$ if its left neighbour is empty.
+\task
+\begin{enumerate}[label=(\alph*),itemsep=1pt]
+\item Before simulating, predict on paper the overall occupied fraction and the distribution of cluster sizes. (What is the probability that a cluster that has reached size $s$ grows to $s+1$?)
+\item Simulate for $(a,b)=(0.9,0.1)$, $(0.5,0.5)$ and $(0.1,0.9)$. Compare $n_s$ and $\chi$ with your predictions and with an uncorrelated chain of the \emph{same} occupied fraction.
+\end{enumerate}
+\checkpt $(a,b)=(0.5,0.5)$ must reduce to the uncorrelated chain with $p=0.5$.
+\think Positive correlations ($a>b$) make large clusters much more likely at fixed density. Which biological mechanisms (cooperative binding, nucleation) produce $a>b$?
+\end{problem}
+
+%=====================================================================
+\section{Branching trees and the role of loops (Example 2)}
+%=====================================================================
+
+\begin{problem}{Growing clusters on a Bethe lattice}{$\star\star$}
+You cannot store an infinite tree, but you never need to: grow the cluster of an occupied origin \emph{on the fly}. Start from the origin with $z=3$ open directions; each new site is occupied with probability $p$ and, if occupied, opens $z-1=2$ further directions. Stop at a maximum depth $G$ (number of generations).
+\task
+\begin{enumerate}[label=(\alph*),itemsep=1pt]
+\item Use a queue (breadth-first) rather than recursion. Record, for each realisation, the cluster size and whether it reached depth $G$.
+\item Measure the mean cluster size $\chi(p)$ for $p=0.30,0.35,\dots,0.48$ with $G=15,25,40$ and compare with $(1+p)/(1-2p)$.
+\item Near $p=1/2$ the finite depth biases your result. Plot the relative error against $G$ for $p=0.45$ and $0.49$. How large must $G$ be?
+\item Histogram the cluster sizes at $p=0.45$ and $p=0.50$. What changes in the shape of the distribution?
+\end{enumerate}
+\checkpt $\chi(0.40)=7$, $\chi(0.45)=14.5$, $\chi(0.49)=74.5$ (as $G\to\infty$).
+\hint Above $p=1/2$ clusters can be infinite; cap the total number of sites as well as the depth, and record how often the cap is hit.
+\end{problem}
+
+\begin{problem}{The survival probability $Q$ and the giant cluster}{$\star\star$}
+\task
+\begin{enumerate}[label=(\alph*),itemsep=1pt]
+\item From the simulation of Problem~B.1, estimate the probability $1-Q_G$ that a single branch reaches depth $G$, for $p$ between $0.4$ and $0.9$.
+\item Independently, iterate the map $Q_{g+1}=1-p+p\,Q_g^2$ numerically. Decide (and justify) the correct starting value $Q_0$ so that $Q_g$ means ``fails to reach depth $g$''. Compare with (a).
+\item Plot $P_\infty=p\,(1-Q^3)$ against $p$ and check the slope $6$ just above $p=1/2$.
+\item At $p=1/2$, how fast does $Q_g$ approach $1$ with $g$? Compare with $p=0.4$ and $p=0.6$. Why is convergence so slow exactly at threshold?
+\end{enumerate}
+\checkpt $p=0.6$: $Q=2/3$, $P_\infty\approx0.422$. $p=0.75$: $Q=1/3$, $P_\infty\approx0.722$.
+\end{problem}
+
+\begin{problem}{General coordination number}{$\star$}
+Generalise Problems~B.1--B.2 to coordination $z=3,4,5,6$.
+\task Locate $p_c$ numerically (e.g.\ where $\chi$ diverges, or where $Q$ first drops below $1$) and compare with $1/(z-1)$. Derive and test the general formula for $\chi$.
+\end{problem}
+
+\begin{problem}{Sparse random graphs look like trees}{$\star\star$}
+Build an Erd\H{o}s--R\'enyi random graph with $N$ nodes and mean degree $c$ (each pair linked with probability $c/(N-1)$), using your union--find on the edge list.
+\task
+\begin{enumerate}[label=(\alph*),itemsep=1pt]
+\item Measure the giant-component fraction $S(c)$ for $N=10^3,10^4,10^5$ and $0<c<4$.
+\item Derive, with the branching argument, the self-consistency condition $S=1-e^{-cS}$, solve it numerically, and overlay it.
+\item Count short loops (e.g.\ triangles) per node as $N$ grows. Why does the tree argument become exact?
+\end{enumerate}
+\checkpt $S(1.5)\approx0.583$, $S(2)\approx0.797$, $S(3)\approx0.940$; threshold $c=1$.
+\end{problem}
+
+\begin{problem}{Loops raise the threshold}{$\star\star$}
+The Bethe lattice with $z=4$ has $p_c=1/3$. The square lattice also has four neighbours per site, but it has loops.
+\task
+\begin{enumerate}[label=(\alph*),itemsep=1pt]
+\item Using Part~0, measure the spanning probability for \emph{bond} percolation on $L\times L$ square lattices with $L=16,32,64,128$, and locate the point where the curves cross.
+\item Repeat for \emph{site} percolation.
+\item Express the difference from the tree value as a statement about redundant links.
+\end{enumerate}
+\checkpt Bond: $p_c=1/2$ (exact). Site: $p_c\approx0.5927$.
+\think This is the same lesson as Example~5 (relay): tree estimates are lower bounds in low dimensions.
+\end{problem}
+
+%=====================================================================
+\section{Multivalent molecules and gelation (Example 3)}
+%=====================================================================
+
+\begin{problem}{Mean-field gel point: numbers first}{$\star$}
+\task
+\begin{enumerate}[label=(\alph*),itemsep=1pt]
+\item Write a root-finder (bisection is fine) for $\alpha$ in $\alpha/(1-\alpha)^2=2Kfc$, and plot $\alpha$ against $Kc$ for $f=2,\dots,6$.
+\item Mark on each curve where $\alpha$ crosses $1/(f-1)$ and reproduce Fig.~2(b) of the main text.
+\end{enumerate}
+\checkpt $Kc_{\text{perc}}=1/3,\ 3/32,\ 2/45,\ 5/192$ for $f=3,4,5,6$. At $Kc=0.1$: $\alpha\approx0.297$ ($f=3$) and $\alpha\approx0.382$ ($f=5$).
+\end{problem}
+
+\begin{problem}{Random pairing of stickers}{$\star\star$}
+This is the simulation behind Flory--Stockmayer theory. Take $N$ molecules, each with $f$ stickers (so $Nf$ sticker ``stubs''). For a given $\alpha$, choose $\alpha Nf$ stubs at random (make it even) and pair them uniformly at random. Each pair is a bond between the two molecules that own the stubs.
+\task
+\begin{enumerate}[label=(\alph*),itemsep=1pt]
+\item Measure the largest-cluster fraction (in molecules) against $\alpha$ for $f=3,4,6$ and $N=10^3,10^4,10^5$. Locate $\alpha_c$ from the crossing of curves for different $N$.
+\item Derive on paper the gel fraction. Let $u$ be the probability that a sticker does \emph{not} lead to the infinite network; argue that $u=1-\alpha+\alpha u^{f-1}$ and that the gel fraction is $1-u^f$. Overlay this prediction.
+\item Count ``wasted'' bonds: intramolecular bonds (both stubs on the same molecule) and repeated bonds between the same two molecules. How does their number scale with $N$?
+\item Measure the size distribution of the finite clusters (the sol) just below $\alpha_c$. These are the pre-percolation clusters of the main text.
+\end{enumerate}
+\checkpt $\alpha_c=1/2,\,1/3,\,1/5$ for $f=3,4,6$. Gel fraction $\approx0.704$ at $(f,\alpha)=(3,0.6)$ and $\approx0.854$ at $(4,0.5)$.
+\end{problem}
+
+\begin{problem}{Two-component (heterotypic) gels}{$\star\star$}
+Many condensates form from two partners, e.g.\ SH3-domain and proline-rich-motif proteins, where an $A$ sticker binds only a $B$ sticker. Take $N_A$ molecules of valence $f_A$ and $N_B$ of valence $f_B$.
+\task
+\begin{enumerate}[label=(\alph*),itemsep=1pt]
+\item Every bond uses one $A$ and one $B$ sticker. Write the relation between $\alpha_A$ and $\alpha_B$ in terms of the sticker ratio $r=N_Af_A/(N_Bf_B)$.
+\item Extend the branching argument (a path now alternates $A\to B\to A$) and derive the gel condition. Predict $\alpha_c$ for $f_A=f_B=3$, $r=1$.
+\item Simulate by random $A$--$B$ pairing and verify. Then fix the total number of molecules and vary the ratio $N_A/N_B$. Is the gel easiest to form at stoichiometric balance? Is there a ratio beyond which no gel can form at all?
+\end{enumerate}
+\checkpt $f_A=f_B=3$, $r=1$: $\alpha_A=\alpha_B=1/2$ at the gel point.
+\think This ``stoichiometry window'' is a known feature of multivalent condensates. Why does an excess of one partner suppress networking?
+\end{problem}
+
+\begin{problem}{Gelation in space (no analytic answer)}{$\star\star\star$}
+Random pairing ignores space: any sticker can bind any other. Now place $N$ molecules at random in a periodic box (2D or 3D) at number density $\rho$. A sticker may bind only to a free sticker on a \emph{different} molecule within distance $r_b$.
+\task
+\begin{enumerate}[label=(\alph*),itemsep=1pt]
+\item Implement a simple bonding rule: list all candidate molecule pairs within $r_b$, visit them in random order, and form a bond with probability $q$ if both molecules still have a free sticker. (Think about whether to allow several bonds between the same pair.)
+\item For fixed $f=3$, measure the achieved $\alpha$ and the largest-cluster fraction as functions of $q$, for several densities $\rho r_b^d$. Locate $\alpha_c$ at each density.
+\item Compare $\alpha_c(\rho)$ with the mean-field $1/(f-1)$. At high density, is $\alpha_c$ higher or lower, and how does it correlate with the fraction of bonds that close loops (bonds between molecules already in the same cluster)?
+\item Is ``spanning'' (Problem~0.2) a good criterion here? Compare it with the largest-cluster fraction.
+\end{enumerate}
+\think Your bonding rule is not an equilibrium model. What would change in a Monte Carlo model where bonds form and break with a Boltzmann weight $e^{\epsilon/k_BT}$? (Optional: implement it.)
+\end{problem}
+
+%=====================================================================
+\section{Optional: signal relay among cells (Example 5)}
+%=====================================================================
+
+\begin{problem}{Reproducing $n_c\approx4.51$}{$\star\star$}
+Place cells as a Poisson process in an $L\times L$ box; link cells closer than $R$.
+\task Measure the left--right spanning probability against $n=\rho\pi R^2$ for $L/R=10,20,40,80$, and locate the crossing. Use a cell list (grid of side $R$) so that neighbour search is not $O(N^2)$.
+\checkpt $n_c\approx4.51$.
+\end{problem}
+
+\begin{problem}{Checking the overlap estimate}{$\star$}
+By Monte Carlo, sample a child at distance $r$ from its parent with density $2r/R^2$ and estimate the mean fraction of the child's disc covered by the parent's disc. Then, in your relay simulation, record the actual number of \emph{new} cells recruited per cell in each generation of a breadth-first spread. Compare with $n$ (tree) and $0.41\,n$ (overlap estimate). Which generations deviate most, and why?
+\checkpt Mean overlap fraction $1-3\sqrt3/(4\pi)\approx0.587$.
+\end{problem}
+
+\begin{problem}{Unresponsive cells}{$\star$}
+Make each cell responsive with probability $q$. At fixed $n=6,9,12$, measure the fraction of cells reached against $q$ and test $q_c=n_c/n$.
+\end{problem}
+
+\begin{problem}{Beyond hard cutoffs: summed signals}{$\star\star\star$}
+In cAMP relay a cell responds to the \emph{summed} signal of many neighbours. Replace the hard cutoff by a kernel: an excited cell $j$ contributes $e^{-d_{ij}/\lambda}$ to cell $i$, and cell $i$ fires when the total from all currently excited cells exceeds a threshold $\theta$. Start from a small excited disc in the centre.
+\task
+\begin{enumerate}[label=(\alph*),itemsep=1pt]
+\item Measure the final fraction of excited cells against density for several $\theta$.
+\item For small $\theta$ (one excited neighbour suffices) you should recover ordinary continuum percolation with an effective range. For large $\theta$ (several neighbours needed) how does the transition change? Is it still continuous?
+\item Does the outcome now depend on the size of the initial excited region?
+\end{enumerate}
+\think Requiring several excited neighbours is the rule of \emph{bootstrap percolation}, which can show abrupt transitions. This is one route from the idealised Example~5 toward realistic excitable media.
+\end{problem}
+
+%=====================================================================
+\renewcommand{\thesection}{}
+\section*{Checkpoint summary}
+%=====================================================================
+\begin{center}
+\small
+\begin{tabular}{lll}
+\toprule
+Problem & Quantity & Value\\
+\midrule
+A.1 & $n_1,\,n_2$ at $p=0.5$ & $0.125,\ 0.0625$\\
+A.2 & $\langle s\rangle_{\text{cluster}},\ \chi$ at $p=0.5$; at $p=0.9$ & $2,\ 3$;\ \ $10,\ 19$\\
+A.3 & $p_c(L)$ for $L=10,100$ & $0.933,\ 0.9931$\\
+B.1 & $\chi$ at $p=0.40,\,0.45,\,0.49$ ($z=3$) & $7,\ 14.5,\ 74.5$\\
+B.2 & $(Q,P_\infty)$ at $p=0.6$;\ at $p=0.75$ & $(2/3,\ 0.422)$;\ \ $(1/3,\ 0.722)$\\
+B.4 & $S$ at $c=1.5,\,2,\,3$ & $0.583,\ 0.797,\ 0.940$\\
+B.5 & square-lattice $p_c$ (bond, site) & $0.5,\ 0.5927$\\
+C.1 & $Kc_{\text{perc}}$ for $f=3,4,5,6$ & $0.333,\ 0.094,\ 0.044,\ 0.026$\\
+C.2 & $\alpha_c$ for $f=3,4,6$;\ gel fraction at $(3,0.6)$, $(4,0.5)$ & $1/2,\,1/3,\,1/5$;\ \ $0.704,\ 0.854$\\
+C.3 & $\alpha_c$ for $f_A=f_B=3$, $r=1$ & $1/2$\\
+D.1 & continuum relay threshold & $n_c\approx4.51$\\
+D.2 & mean parent--child overlap & $0.587$\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\end{document}
