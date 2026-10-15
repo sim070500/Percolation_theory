@@ -404,8 +404,8 @@ def testtime(L, prob):
 # seed = 42
 # rng = np.random.default_rng(seed)
 
-# L = 6
-# plotallfigure(L)
+L = 5
+plotallfigure(L)
 
 
 # prob = 0.6
